@@ -11,9 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, Download, FileText, Filter, Search, Trash2 } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@supabase/supabase-js"
-import { kv } from "@vercel/kv"
-import { useSearchParams } from "next/navigation"
 
 // Sample analysis history data
 const sampleAnalysisHistory = [
@@ -72,79 +69,15 @@ export default function HistoryContent() {
   const [analysisHistory, setAnalysisHistory] = useState(sampleAnalysisHistory)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
-  const searchParams = useSearchParams()
-
-  // Initialize Supabase client
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   useEffect(() => {
-    const fetchAnalysisHistory = async () => {
-      setIsLoading(true)
-      try {
-        // Try to fetch from Redis first (for faster access)
-        let cachedHistory
-        try {
-          cachedHistory = await kv.get("analysis_history")
-        } catch (error) {
-          console.error("Redis fetch error:", error)
-        }
+    // Simulate loading data
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 1000)
 
-        if (cachedHistory) {
-          setAnalysisHistory(cachedHistory)
-        } else {
-          // If not in Redis, fetch from Supabase
-          const { data, error } = await supabase
-            .from("analysis_requests")
-            .select("*")
-            .order("created_at", { ascending: false })
-
-          if (error) {
-            throw error
-          }
-
-          if (data && data.length > 0) {
-            // Transform data to match our expected format
-            const formattedData = data.map((item) => ({
-              id: item.id,
-              date: item.created_at,
-              screenshots: item.screenshot_count || 0,
-              score: item.results?.relationshipHealth || 0,
-              change: "+0", // Would need to calculate this based on previous analysis
-              people: [item.person_a_name, item.person_b_name],
-              tags: item.tags || ["communication"],
-            }))
-
-            setAnalysisHistory(formattedData)
-
-            // Cache in Redis for faster future access
-            try {
-              await kv.set("analysis_history", formattedData, { ex: 3600 }) // Expire after 1 hour
-            } catch (error) {
-              console.error("Redis cache error:", error)
-            }
-          } else {
-            // If no data in Supabase, use sample data
-            setAnalysisHistory(sampleAnalysisHistory)
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching analysis history:", error)
-        toast({
-          title: "Error fetching history",
-          description: "Using sample data instead.",
-          variant: "destructive",
-        })
-        // Fallback to sample data
-        setAnalysisHistory(sampleAnalysisHistory)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchAnalysisHistory()
-  }, [toast, supabase])
+    return () => clearTimeout(timer)
+  }, [])
 
   // Filter analysis history based on search query and filters
   const filteredHistory = analysisHistory.filter((analysis) => {
@@ -191,39 +124,13 @@ export default function HistoryContent() {
   }
 
   // Handle delete analysis
-  const handleDeleteAnalysis = async (id: string) => {
-    try {
-      // Delete from Supabase
-      const { error } = await supabase.from("analysis_requests").delete().eq("id", id)
+  const handleDeleteAnalysis = (id: string) => {
+    setAnalysisHistory((prev) => prev.filter((analysis) => analysis.id !== id))
 
-      if (error) throw error
-
-      // Update local state
-      setAnalysisHistory((prev) => prev.filter((analysis) => analysis.id !== id))
-
-      // Update Redis cache
-      try {
-        await kv.set(
-          "analysis_history",
-          analysisHistory.filter((analysis) => analysis.id !== id),
-          { ex: 3600 },
-        )
-      } catch (error) {
-        console.error("Redis update error:", error)
-      }
-
-      toast({
-        title: "Analysis deleted",
-        description: "The analysis has been successfully deleted.",
-      })
-    } catch (error) {
-      console.error("Error deleting analysis:", error)
-      toast({
-        title: "Error deleting analysis",
-        description: "There was an error deleting the analysis.",
-        variant: "destructive",
-      })
-    }
+    toast({
+      title: "Analysis deleted",
+      description: "The analysis has been successfully deleted.",
+    })
   }
 
   // Handle download analysis
