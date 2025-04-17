@@ -18,6 +18,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { RedisHealthCheck } from "@/components/admin/redis-health-check"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -29,6 +30,7 @@ export default function AppLayout({ children, showBreadcrumbs = true }: AppLayou
   const [hasRecentAnalysis, setHasRecentAnalysis] = useState(false)
   const [scrollPosition, setScrollPosition] = useState(0)
   const showScrollTop = scrollPosition > 400
+  const isAdminPage = pathname?.startsWith("/admin")
 
   useEffect(() => {
     // Check for analysis results
@@ -105,6 +107,8 @@ export default function AppLayout({ children, showBreadcrumbs = true }: AppLayou
             )}
 
             <div className="ml-auto flex items-center gap-4">
+              {isAdminPage && <RedisHealthCheck compact autoRefresh refreshInterval={60} />}
+
               <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
                 <Bell className="h-5 w-5" />
                 {hasRecentAnalysis && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}

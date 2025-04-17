@@ -62,7 +62,9 @@
     "framer-motion": "latest",
     "ai": "latest",
     "@ai-sdk/groq": "latest",
-    "@supabase/supabase-js": "latest"
+    "@supabase/supabase-js": "latest",
+    "uuid": "latest",
+    "@upstash/redis": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

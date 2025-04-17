@@ -1,28 +1,66 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import AppLayout from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getStoredAnalysisResults } from "@/lib/screenshot-analysis"
 import { EmotionalToneVisualizer } from "@/components/emotional-tone-visualizer"
 import VisualComparison from "@/components/visual-comparison"
-import { useRouter } from "next/navigation"
 import { Upload } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AnalysisContent() {
   const [analysisResults, setAnalysisResults] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+
+  const analysisId = searchParams.get("id")
 
   useEffect(() => {
-    // Fetch analysis results from localStorage
-    const results = getStoredAnalysisResults()
-    setAnalysisResults(results)
-    setLoading(false)
-  }, [])
+    const fetchAnalysis = async () => {
+      setLoading(true)
+      try {
+        if (analysisId) {
+          // Fetch analysis from Redis
+          const response = await fetch(`/api/analysis/get?id=${analysisId}`)
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch analysis")
+          }
+
+          const data = await response.json()
+          setAnalysisResults(data.analysis)
+        } else {
+          // Fallback to localStorage if no ID is provided
+          const storedResults = localStorage.getItem("analysisResults")
+          if (storedResults) {
+            setAnalysisResults(JSON.parse(storedResults))
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching analysis:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch analysis data.",
+          variant: "destructive",
+        })
+
+        // Fallback to localStorage
+        const storedResults = localStorage.getItem("analysisResults")
+        if (storedResults) {
+          setAnalysisResults(JSON.parse(storedResults))
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAnalysis()
+  }, [analysisId, toast])
 
   return (
     <AppLayout>

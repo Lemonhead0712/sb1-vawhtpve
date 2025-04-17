@@ -1,161 +1,65 @@
 "use client"
 
 import type React from "react"
+
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  BarChart2,
-  TrendingUp,
-  MessageCircle,
-  User,
-  Settings,
-  HelpCircle,
-  Activity,
-  LayoutDashboard,
-  Gauge,
-  Github,
-} from "lucide-react"
-import { Logo } from "@/components/ui/logo"
-import {
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarRail,
-} from "@/components/ui/sidebar"
-import { useTheme } from "next-themes"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Home, BarChart2, TrendingUp, MessageCircle, User, Menu, BarChart } from "lucide-react"
 
-type NavItem = {
+interface NavItem {
   name: string
   href: string
   icon: React.ReactNode
-  subItems?: { name: string; href: string }[]
 }
 
-export default function AppSidebar() {
-  const pathname = usePathname()
-  const { theme } = useTheme()
+const navItems: NavItem[] = [
+  { name: "Dashboard", href: "/dashboard", icon: <Home className="h-5 w-5" /> },
+  { name: "Analysis", href: "/analysis", icon: <BarChart2 className="h-5 w-5" /> },
+  { name: "Comparison", href: "/comparison", icon: <BarChart className="h-5 w-5" /> },
+  { name: "Trends", href: "/trends", icon: <TrendingUp className="h-5 w-5" /> },
+  { name: "Growth", href: "/growth", icon: <TrendingUp className="h-5 w-5" /> },
+  { name: "AI Assistant", href: "/assistant", icon: <MessageCircle className="h-5 w-5" /> },
+  { name: "Profile", href: "/profile", icon: <User className="h-5 w-5" /> },
+]
 
-  const navItems: NavItem[] = [
-    {
-      name: "Dashboard",
-      href: "/dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      name: "Analysis",
-      href: "/analysis",
-      icon: <Activity className="h-5 w-5" />,
-      subItems: [
-        { name: "New Analysis", href: "/analysis/new" },
-        { name: "History", href: "/analysis/history" },
-      ],
-    },
-    {
-      name: "Insights",
-      href: "/insights",
-      icon: <Gauge className="h-5 w-5" />,
-    },
-    {
-      name: "Comparison",
-      href: "/comparison",
-      icon: <BarChart2 className="h-5 w-5" />,
-    },
-    {
-      name: "Growth",
-      href: "/growth",
-      icon: <TrendingUp className="h-5 w-5" />,
-    },
-    {
-      name: "AI Coach",
-      href: "/assistant",
-      icon: <MessageCircle className="h-5 w-5" />,
-    },
-  ]
+export default function AppSidebar() {
+  const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname()
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b py-3">
-        <div className="flex flex-col items-center gap-2 px-4">
-          <Logo size="lg" withText />
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 p-0">
+        <SheetHeader className="px-4 py-5 text-left">
+          <SheetTitle>Emotional Insights</SheetTitle>
+        </SheetHeader>
+        <div className="py-4">
+          <nav className="grid gap-1 px-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-secondary/50 data-[state=open]:bg-secondary/50",
+                  pathname === item.href ? "bg-secondary text-secondary-foreground" : "text-muted-foreground",
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                {item.icon}
+                <span>{item.name}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.name}>
-              {item.subItems ? (
-                <>
-                  <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </SidebarMenuButton>
-                  <SidebarMenuSub>
-                    {item.subItems.map((subItem) => (
-                      <SidebarMenuSubItem key={subItem.name}>
-                        <SidebarMenuSubButton asChild isActive={pathname === subItem.href}>
-                          <Link href={subItem.href}>{subItem.name}</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                </>
-              ) : (
-                <SidebarMenuButton asChild isActive={pathname === item.href}>
-                  <Link href={item.href}>
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </Link>
-                </SidebarMenuButton>
-              )}
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-
-      <SidebarFooter className="border-t py-3">
-        <div className="flex flex-col gap-2 px-4">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/profile">
-                  <User className="h-5 w-5" />
-                  <span>Profile</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/settings">
-                  <Settings className="h-5 w-5" />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-
-          <div className="flex items-center justify-between mt-2 px-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="icon" aria-label="GitHub">
-              <Github className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" aria-label="Help">
-              <HelpCircle className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </SidebarFooter>
-
-      <SidebarRail />
-    </Sidebar>
+      </SheetContent>
+    </Sheet>
   )
 }

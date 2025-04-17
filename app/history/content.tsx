@@ -8,88 +8,77 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Download, FileText, Filter, Search, Trash2 } from "lucide-react"
+import { Calendar, Download, FileText, Filter, Search, Trash2, Upload } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
+import { AnalysisGenerator } from "@/components/test/analysis-generator"
 
-// Sample analysis history data
-const sampleAnalysisHistory = [
-  {
-    id: "1",
-    date: "2023-03-10T12:00:00Z",
-    screenshots: 8,
-    score: 85,
-    change: "+5",
-    people: ["Alex", "Jordan"],
-    tags: ["communication", "trust"],
-  },
-  {
-    id: "2",
-    date: "2023-02-22T12:00:00Z",
-    screenshots: 5,
-    score: 80,
-    change: "+2",
-    people: ["Alex", "Jordan"],
-    tags: ["conflict", "emotions"],
-  },
-  {
-    id: "3",
-    date: "2023-02-05T12:00:00Z",
-    screenshots: 10,
-    score: 78,
-    change: "+6",
-    people: ["Alex", "Jordan"],
-    tags: ["communication", "attachment"],
-  },
-  {
-    id: "4",
-    date: "2023-01-18T12:00:00Z",
-    screenshots: 7,
-    score: 72,
-    change: "+4",
-    people: ["Alex", "Jordan"],
-    tags: ["trust", "emotions"],
-  },
-  {
-    id: "5",
-    date: "2023-01-02T12:00:00Z",
-    screenshots: 6,
-    score: 68,
-    change: "-2",
-    people: ["Alex", "Jordan"],
-    tags: ["conflict", "communication"],
-  },
-]
+type Analysis = {
+  id: string
+  result: {
+    userA: {
+      name: string
+    }
+    userB: {
+      name: string
+    }
+    relationshipHealth: number
+    timestamp: string
+    screenshotCount: number
+    insights: {
+      strengths: string[]
+      challenges: string[]
+      recommendations: string[]
+    }
+  }
+}
 
 export default function HistoryContent() {
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [timeFilter, setTimeFilter] = useState("all")
   const [tagFilter, setTagFilter] = useState("all")
-  const [analysisHistory, setAnalysisHistory] = useState(sampleAnalysisHistory)
+  const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
-  useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+  const fetchAnalyses = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/analysis/history")
+      if (!response.ok) {
+        throw new Error("Failed to fetch analyses")
+      }
 
-    return () => clearTimeout(timer)
+      const data = await response.json()
+      setAnalyses(data.analyses || [])
+    } catch (error) {
+      console.error("Error fetching analyses:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch analysis history.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAnalyses()
   }, [])
 
-  // Filter analysis history based on search query and filters
-  const filteredHistory = analysisHistory.filter((analysis) => {
+  // Filter analyses based on search query and filters
+  const filteredAnalyses = analyses.filter((analysis) => {
     // Search filter
     const searchMatch =
       searchQuery === "" ||
-      analysis.people.some((person) => person.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      analysis.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      analysis.result.userA.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      analysis.result.userB.name.toLowerCase().includes(searchQuery.toLowerCase())
 
     // Time filter
     let timeMatch = true
-    const analysisDate = new Date(analysis.date)
+    const analysisDate = new Date(analysis.result.timestamp)
     const now = new Date()
 
     if (timeFilter === "week") {
@@ -107,7 +96,17 @@ export default function HistoryContent() {
     }
 
     // Tag filter
-    const tagMatch = tagFilter === "all" || analysis.tags.includes(tagFilter)
+    const tagMatch =
+      tagFilter === "all" ||
+      (tagFilter === "communication" &&
+        analysis.result.insights.strengths.some((s) => s.toLowerCase().includes("communication"))) ||
+      (tagFilter === "trust" && analysis.result.insights.strengths.some((s) => s.toLowerCase().includes("trust"))) ||
+      (tagFilter === "conflict" &&
+        analysis.result.insights.challenges.some((c) => c.toLowerCase().includes("conflict"))) ||
+      (tagFilter === "emotions" &&
+        analysis.result.insights.challenges.some((c) => c.toLowerCase().includes("emotion"))) ||
+      (tagFilter === "attachment" &&
+        analysis.result.insights.challenges.some((c) => c.toLowerCase().includes("attachment")))
 
     return searchMatch && timeMatch && tagMatch
   })
@@ -124,22 +123,39 @@ export default function HistoryContent() {
   }
 
   // Handle delete analysis
-  const handleDeleteAnalysis = (id: string) => {
-    setAnalysisHistory((prev) => prev.filter((analysis) => analysis.id !== id))
+  const handleDeleteAnalysis = async (id: string) => {
+    try {
+      const response = await fetch(`/api/analysis/delete?id=${id}`, {
+        method: "DELETE",
+      })
 
-    toast({
-      title: "Analysis deleted",
-      description: "The analysis has been successfully deleted.",
-    })
+      if (!response.ok) {
+        throw new Error("Failed to delete analysis")
+      }
+
+      setAnalyses((prev) => prev.filter((analysis) => analysis.id !== id))
+
+      toast({
+        title: "Analysis deleted",
+        description: "The analysis has been successfully deleted.",
+      })
+    } catch (error) {
+      console.error("Error deleting analysis:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete analysis.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Handle download analysis
   const handleDownloadAnalysis = (id: string) => {
-    const analysis = analysisHistory.find((a) => a.id === id)
+    const analysis = analyses.find((a) => a.id === id)
     if (!analysis) return
 
     // Create a JSON file for download
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(analysis))
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(analysis.result))
     const downloadAnchorNode = document.createElement("a")
     downloadAnchorNode.setAttribute("href", dataStr)
     downloadAnchorNode.setAttribute("download", `analysis-${id}.json`)
@@ -187,125 +203,173 @@ export default function HistoryContent() {
           </div>
         </div>
 
-        <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="communication">Communication</TabsTrigger>
-            <TabsTrigger value="trust">Trust</TabsTrigger>
-            <TabsTrigger value="conflict">Conflict</TabsTrigger>
-            <TabsTrigger value="emotions">Emotions</TabsTrigger>
-            <TabsTrigger value="attachment">Attachment</TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className={analyses.length > 0 ? "md:col-span-2" : "md:col-span-3"}>
+            <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="communication">Communication</TabsTrigger>
+                <TabsTrigger value="trust">Trust</TabsTrigger>
+                <TabsTrigger value="conflict">Conflict</TabsTrigger>
+                <TabsTrigger value="emotions">Emotions</TabsTrigger>
+                <TabsTrigger value="attachment">Attachment</TabsTrigger>
+              </TabsList>
 
-          <TabsContent value={activeTab}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Analysis Results</CardTitle>
-                <CardDescription>
-                  {filteredHistory.length} {filteredHistory.length === 1 ? "analysis" : "analyses"} found
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : filteredHistory.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
-                    <h3 className="mt-4 text-lg font-medium">No analyses found</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {searchQuery || timeFilter !== "all" || tagFilter !== "all"
-                        ? "Try adjusting your search or filters"
-                        : "You haven't performed any analyses yet"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredHistory.map((analysis) => (
-                      <div
-                        key={analysis.id}
-                        className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-muted/50 rounded-lg gap-4"
-                      >
-                        <div className="flex-grow">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <p className="font-medium">{format(new Date(analysis.date), "MMMM d, yyyy")}</p>
-                            <span className="text-xs text-muted-foreground">
-                              ({formatDistanceToNow(new Date(analysis.date), { addSuffix: true })})
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mb-2">
-                            <Badge variant="outline" className="text-xs">
-                              {analysis.screenshots} screenshots
-                            </Badge>
-                            {analysis.people.map((person, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {person}
-                              </Badge>
-                            ))}
-                            {analysis.tags.map((tag, index) => (
-                              <Badge key={index} className="text-xs bg-primary/20 text-primary hover:bg-primary/30">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4">
-                          <div className="text-center px-4 py-2 bg-background rounded-md">
-                            <p className="text-xs text-muted-foreground">Score</p>
-                            <p className="text-xl font-bold">{analysis.score}</p>
-                            <p
-                              className={`text-xs ${analysis.change.startsWith("+") ? "text-green-500" : "text-red-500"}`}
-                            >
-                              {analysis.change}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => handleDownloadAnalysis(analysis.id)}
-                            >
-                              <Download className="h-4 w-4 mr-1" />
-                              <span className="sr-only md:not-sr-only">Export</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleDeleteAnalysis(analysis.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              <span className="sr-only md:not-sr-only">Delete</span>
-                            </Button>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => (window.location.href = `/analysis?id=${analysis.id}`)}
-                            >
-                              View
-                            </Button>
-                          </div>
-                        </div>
+              <TabsContent value={activeTab}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Analysis Results</CardTitle>
+                    <CardDescription>
+                      {filteredAnalyses.length} {filteredAnalyses.length === 1 ? "analysis" : "analyses"} found
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                       </div>
-                    ))}
+                    ) : filteredAnalyses.length === 0 ? (
+                      <div className="text-center py-8">
+                        <FileText className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
+                        <h3 className="mt-4 text-lg font-medium">No analyses found</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {searchQuery || timeFilter !== "all" || tagFilter !== "all"
+                            ? "Try adjusting your search or filters"
+                            : "You haven't performed any analyses yet"}
+                        </p>
+                        {!searchQuery && timeFilter === "all" && tagFilter === "all" && (
+                          <div className="mt-6">
+                            <p className="text-sm font-medium mb-3">Get started by analyzing your conversations</p>
+                            <Button asChild>
+                              <a href="/analysis/new">
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload Screenshots
+                              </a>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {filteredAnalyses.map((analysis) => (
+                          <div
+                            key={analysis.id}
+                            className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-muted/50 rounded-lg gap-4"
+                          >
+                            <div className="flex-grow">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <p className="font-medium">
+                                  {format(new Date(analysis.result.timestamp), "MMMM d, yyyy")}
+                                </p>
+                                <span className="text-xs text-muted-foreground">
+                                  ({formatDistanceToNow(new Date(analysis.result.timestamp), { addSuffix: true })})
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {analysis.result.screenshotCount} screenshots
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {analysis.result.userA.name}
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {analysis.result.userB.name}
+                                </Badge>
+                                {analysis.result.insights.strengths.some((s) => s.toLowerCase().includes("trust")) && (
+                                  <Badge className="text-xs bg-primary/20 text-primary hover:bg-primary/30">
+                                    trust
+                                  </Badge>
+                                )}
+                                {analysis.result.insights.challenges.some((c) =>
+                                  c.toLowerCase().includes("communication"),
+                                ) && (
+                                  <Badge className="text-xs bg-primary/20 text-primary hover:bg-primary/30">
+                                    communication
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4">
+                              <div className="text-center px-4 py-2 bg-background rounded-md">
+                                <p className="text-xs text-muted-foreground">Score</p>
+                                <p className="text-xl font-bold">{analysis.result.relationshipHealth}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => handleDownloadAnalysis(analysis.id)}
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  <span className="sr-only md:not-sr-only">Export</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handleDeleteAnalysis(analysis.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  <span className="sr-only md:not-sr-only">Delete</span>
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => (window.location.href = `/analysis?id=${analysis.id}`)}
+                                >
+                                  View
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                  {filteredAnalyses.length > 0 && (
+                    <CardFooter className="flex justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {filteredAnalyses.length} of {analyses.length} analyses
+                      </p>
+                      <Button variant="outline" onClick={fetchAnalyses}>
+                        Refresh
+                      </Button>
+                    </CardFooter>
+                  )}
+                </Card>
+              </TabsContent>
+            </Tabs>
+            {analyses.length === 0 && !isLoading && (
+              <Card className="mt-6 border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-10">
+                  <div className="rounded-full bg-muted p-6 mb-4">
+                    <Upload className="h-10 w-10 text-muted-foreground" />
                   </div>
-                )}
-              </CardContent>
-              {filteredHistory.length > 0 && (
-                <CardFooter className="flex justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Showing {filteredHistory.length} of {analysisHistory.length} analyses
+                  <h3 className="text-xl font-medium mb-2">No Analysis History</h3>
+                  <p className="text-center text-muted-foreground mb-6 max-w-md">
+                    Upload screenshots of your conversations to analyze relationship dynamics and build your analysis
+                    history.
                   </p>
-                  <Button variant="outline">Load More</Button>
-                </CardFooter>
-              )}
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  <Button size="lg" asChild>
+                    <a href="/analysis/new">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Your First Screenshots
+                    </a>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {analyses.length > 0 && (
+            <div className="md:col-span-1">
+              <AnalysisGenerator />
+            </div>
+          )}
+        </div>
       </div>
     </AppLayout>
   )

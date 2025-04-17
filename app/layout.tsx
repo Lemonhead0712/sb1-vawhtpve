@@ -5,6 +5,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@/components/analytics"
+import { Suspense } from "react"
+import { Loading } from "@/components/ui/loading"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,9 +28,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
-          <Toaster />
-          <Analytics />
+          <Suspense fallback={<Loading />}>
+            {children}
+            <Toaster />
+            <Analytics />
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
