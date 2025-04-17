@@ -1,7 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
-import { Loading } from "@/components/ui/loading"
+import { useState, useEffect } from "react"
 import AppLayout from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,9 +25,8 @@ import { getStoredAnalysisResults } from "@/lib/screenshot-analysis"
 import { formatDistanceToNow } from "date-fns"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
-import { useState, useEffect } from "react"
 
-function DashboardContent() {
+export default function DashboardContent() {
   const [analysisResults, setAnalysisResults] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [loading, setLoading] = useState(true)
@@ -611,13 +609,5 @@ function DashboardContent() {
         </Tabs>
       </div>
     </AppLayout>
-  )
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<Loading text="Loading dashboard..." />}>
-      <DashboardContent />
-    </Suspense>
   )
 }

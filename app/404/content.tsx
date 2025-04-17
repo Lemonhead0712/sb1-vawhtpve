@@ -1,9 +1,17 @@
-import Link from "next/link"
+"use client"
+
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Home } from "lucide-react"
 
-export default function NotFound() {
+export default function NotFoundContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // We can use searchParams here safely since we're in a client component
+  const from = searchParams.get("from") || ""
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-lavender via-skyblue to-blush">
       <Card className="w-full max-w-md">
@@ -15,14 +23,13 @@ export default function NotFound() {
           <div className="text-8xl font-bold text-muted-foreground mb-6">404</div>
           <p className="text-center text-muted-foreground mb-6">
             The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+            {from && <span className="block mt-2">You came from: {from}</span>}
           </p>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button asChild>
-            <Link href="/dashboard">
-              <Home className="mr-2 h-4 w-4" />
-              Return to Dashboard
-            </Link>
+          <Button onClick={() => router.push("/dashboard")}>
+            <Home className="mr-2 h-4 w-4" />
+            Return to Dashboard
           </Button>
         </CardFooter>
       </Card>

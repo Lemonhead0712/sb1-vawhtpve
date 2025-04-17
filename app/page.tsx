@@ -8,17 +8,17 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    // Client-side redirect after component mounts
     router.push("/login")
   }, [router])
 
-  // Show a minimal loading state while redirecting
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-lavender via-skyblue to-blush">
-      <div className="animate-pulse">
-        <Logo size="lg" withText={true} />
+      <div className="text-center">
+        <div className="flex justify-center mb-4">
+          <Logo size="lg" />
+        </div>
+        <h1 className="text-2xl font-bold text-white">Redirecting to login...</h1>
       </div>
-      <p className="mt-4 text-white text-opacity-80">Redirecting to login...</p>
     </div>
   )
 }
